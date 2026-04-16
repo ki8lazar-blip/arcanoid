@@ -23,15 +23,21 @@ const paddle = {
     dx: 0
 };
 
-// Ball
-const ball = {
-    x: canvas.width / 2,
-    y: canvas.height - 60,
-    radius: 8,
-    speed: 4,
-    dx: 4,
-    dy: -4
-};
+// Balls array (to support multiple balls)
+let balls = [];
+
+// Initialize first ball
+function createBall(x, y) {
+    const baseSpeed = 4 + (level - 1) * 0.3; // Speed increases with level
+    return {
+        x: x || canvas.width / 2,
+        y: y || canvas.height - 60,
+        radius: 8,
+        speed: baseSpeed,
+        dx: baseSpeed,
+        dy: -baseSpeed
+    };
+}
 
 // Bricks (asteroids)
 const brickRowCount = 5;
@@ -43,6 +49,7 @@ const brickOffsetTop = 60;
 const brickOffsetLeft = 45;
 
 let bricks = [];
+let powerUps = [];
 
 // Brick colors (space themed)
 const brickColors = [
@@ -53,26 +60,90 @@ const brickColors = [
     { fill: '#f59e0b', glow: 'rgba(245, 158, 11, 0.5)' }   // Orange
 ];
 
+// Power-up types
+const powerUpTypes = [
+    { 
+        type: 'bomb', 
+        emoji: '💣', 
+        color: '#ef4444',
+        glow: 'rgba(239, 68, 68, 0.8)',
+        chance: 0.05  // 5% chance
+    },
+    { 
+        type: 'life', 
+        emoji: '❤️', 
+        color: '#ec4899',
+        glow: 'rgba(236, 72, 153, 0.8)',
+        chance: 0.08  // 8% chance
+    },
+    { 
+        type: 'multiBall', 
+        emoji: '⚡', 
+        color: '#fbbf24',
+        glow: 'rgba(251, 191, 36, 0.8)',
+        chance: 0.1  // 10% chance
+    }
+];
+
+// Brick patterns for different levels
+function getBrickPattern(level) {
+    const patterns = {
+        1: (c, r) => true, // All bricks
+        2: (c, r) => (c + r) % 2 === 0, // Checkerboard
+        3: (c, r) => r < 3 || c % 2 === 0, // Pyramid
+        4: (c, r) => Math.abs(c - 3.5) + r < 6, // Diamond
+        5: (c, r) => (c < 2 || c > 5) || r < 2, // Frame
+        6: (c, r) => c % 2 === r % 2, // Diagonal stripes
+        7: (c, r) => (c + r) % 3 !== 0, // Sparse pattern
+        8: (c, r) => Math.abs(c - 3.5) < 3 || r < 2, // Cross
+        9: (c, r) => (c < 3 && r < 3) || (c > 4 && r < 3) || r === 4, // Smiley
+        10: (c, r) => true // All bricks (harder version)
+    };
+    
+    // Cycle through patterns if level > 10
+    const patternKey = ((level - 1) % 10) + 1;
+    return patterns[patternKey] || patterns[1];
+}
+
 // Initialize bricks
 function initBricks() {
     bricks = [];
+    const pattern = getBrickPattern(level);
+    
     for (let c = 0; c < brickColumnCount; c++) {
         bricks[c] = [];
         for (let r = 0; r < brickRowCount; r++) {
             const colorIndex = r % brickColors.length;
+            const shouldHaveBrick = pattern(c, r);
+            
             bricks[c][r] = {
                 x: c * (brickWidth + brickPadding) + brickOffsetLeft,
                 y: r * (brickHeight + brickPadding) + brickOffsetTop,
-                status: 1,
+                status: shouldHaveBrick ? 1 : 0,
                 color: brickColors[colorIndex]
             };
         }
     }
 }
 
+// Create power-up
+function createPowerUp(x, y) {
+    const randomType = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+    powerUps.push({
+        x: x,
+        y: y,
+        width: 40,
+        height: 40,
+        speed: 2,
+        type: randomType.type,
+        emoji: randomType.emoji,
+        color: randomType.color,
+        glow: randomType.glow
+    });
+}
+
 // Draw paddle (spaceship)
 function drawPaddle() {
-    // Spaceship body
     ctx.save();
     ctx.shadowBlur = 20;
     ctx.shadowColor = '#3b82f6';
@@ -101,12 +172,11 @@ function drawPaddle() {
 }
 
 // Draw ball (energy orb)
-function drawBall() {
+function drawBall(ball) {
     ctx.save();
     ctx.shadowBlur = 15;
     ctx.shadowColor = '#3b82f6';
     
-    // Outer glow
     const gradient = ctx.createRadialGradient(ball.x, ball.y, 0, ball.x, ball.y, ball.radius);
     gradient.addColorStop(0, '#fff');
     gradient.addColorStop(0.5, '#3b82f6');
@@ -117,13 +187,17 @@ function drawBall() {
     ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
     ctx.fill();
     
-    // Inner core
     ctx.fillStyle = '#fff';
     ctx.beginPath();
     ctx.arc(ball.x, ball.y, ball.radius / 3, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.restore();
+}
+
+// Draw all balls
+function drawBalls() {
+    balls.forEach(ball => drawBall(ball));
 }
 
 // Draw bricks (asteroids)
@@ -136,7 +210,6 @@ function drawBricks() {
                 ctx.shadowBlur = 10;
                 ctx.shadowColor = brick.color.glow;
                 
-                // Asteroid shape
                 ctx.fillStyle = brick.color.fill;
                 ctx.beginPath();
                 ctx.moveTo(brick.x + 10, brick.y);
@@ -150,7 +223,6 @@ function drawBricks() {
                 ctx.closePath();
                 ctx.fill();
                 
-                // Highlight
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
                 ctx.fillRect(brick.x + 5, brick.y + 5, brickWidth - 10, 5);
                 
@@ -160,40 +232,133 @@ function drawBricks() {
     }
 }
 
-// Draw stars effect
-function drawStars() {
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-    for (let i = 0; i < 50; i++) {
-        const x = Math.random() * canvas.width;
-        const y = Math.random() * canvas.height;
-        const size = Math.random() * 2;
-        ctx.fillRect(x, y, size, size);
+// Draw power-ups
+function drawPowerUps() {
+    powerUps.forEach(powerUp => {
+        ctx.save();
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = powerUp.glow;
+        
+        // Glow circle
+        ctx.fillStyle = powerUp.color;
+        ctx.beginPath();
+        ctx.arc(powerUp.x + powerUp.width / 2, powerUp.y + powerUp.height / 2, 20, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Emoji
+        ctx.font = '30px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(powerUp.emoji, powerUp.x + powerUp.width / 2, powerUp.y + powerUp.height / 2);
+        
+        ctx.restore();
+    });
+}
+
+// Move power-ups
+function movePowerUps() {
+    powerUps.forEach((powerUp, index) => {
+        powerUp.y += powerUp.speed;
+        
+        // Check collision with paddle
+        if (powerUp.y + powerUp.height > paddle.y &&
+            powerUp.y < paddle.y + paddle.height &&
+            powerUp.x + powerUp.width > paddle.x &&
+            powerUp.x < paddle.x + paddle.width) {
+            
+            activatePowerUp(powerUp.type);
+            powerUps.splice(index, 1);
+        }
+        
+        // Remove if off screen
+        if (powerUp.y > canvas.height) {
+            powerUps.splice(index, 1);
+        }
+    });
+}
+
+// Activate power-up
+function activatePowerUp(type) {
+    switch(type) {
+        case 'bomb':
+            // Destroy all bricks
+            for (let c = 0; c < brickColumnCount; c++) {
+                for (let r = 0; r < brickRowCount; r++) {
+                    if (bricks[c][r].status === 1) {
+                        bricks[c][r].status = 0;
+                        score += 10 * level;
+                    }
+                }
+            }
+            updateScore();
+            
+            // Visual explosion effect
+            ctx.save();
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
+            
+            // Check if level complete
+            if (checkLevelComplete()) {
+                setTimeout(() => levelComplete(), 500);
+            }
+            break;
+            
+        case 'life':
+            lives++;
+            updateLives();
+            break;
+            
+        case 'multiBall':
+            // Create 2 extra balls
+            const baseBall = balls[0];
+            balls.push(createBall(baseBall.x, baseBall.y));
+            balls.push(createBall(baseBall.x, baseBall.y));
+            
+            // Give them different angles
+            balls[balls.length - 2].dx = -4;
+            balls[balls.length - 1].dx = 2;
+            break;
     }
 }
 
 // Collision detection
 function collisionDetection() {
-    for (let c = 0; c < brickColumnCount; c++) {
-        for (let r = 0; r < brickRowCount; r++) {
-            const brick = bricks[c][r];
-            if (brick.status === 1) {
-                if (ball.x > brick.x && 
-                    ball.x < brick.x + brickWidth && 
-                    ball.y > brick.y && 
-                    ball.y < brick.y + brickHeight) {
-                    ball.dy = -ball.dy;
-                    brick.status = 0;
-                    score += 10 * level;
-                    updateScore();
-                    
-                    // Check if level complete
-                    if (checkLevelComplete()) {
-                        levelComplete();
+    balls.forEach(ball => {
+        for (let c = 0; c < brickColumnCount; c++) {
+            for (let r = 0; r < brickRowCount; r++) {
+                const brick = bricks[c][r];
+                if (brick.status === 1) {
+                    if (ball.x > brick.x && 
+                        ball.x < brick.x + brickWidth && 
+                        ball.y > brick.y && 
+                        ball.y < brick.y + brickHeight) {
+                        ball.dy = -ball.dy;
+                        brick.status = 0;
+                        score += 10 * level;
+                        updateScore();
+                        
+                        // Random chance to drop power-up
+                        const random = Math.random();
+                        let cumulativeChance = 0;
+                        
+                        for (let powerUpType of powerUpTypes) {
+                            cumulativeChance += powerUpType.chance;
+                            if (random < cumulativeChance) {
+                                createPowerUp(brick.x + brickWidth / 2 - 20, brick.y);
+                                break;
+                            }
+                        }
+                        
+                        // Check if level complete
+                        if (checkLevelComplete()) {
+                            levelComplete();
+                        }
                     }
                 }
             }
         }
-    }
+    });
 }
 
 // Check if level is complete
@@ -222,12 +387,24 @@ function nextLevel() {
     document.getElementById('level').textContent = level;
     document.getElementById('levelCompleteModal').style.display = 'none';
     
-    // Increase difficulty
-    ball.speed += 0.5;
+    // Increase difficulty progressively
+    // Ball speed increases by 0.3 per level
+    balls.forEach(ball => {
+        const speedIncrease = 0.3;
+        const speedMultiplier = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
+        ball.dx = (ball.dx / speedMultiplier) * (4 + (level - 1) * speedIncrease);
+        ball.dy = (ball.dy / speedMultiplier) * (4 + (level - 1) * speedIncrease);
+    });
+    
+    // Increase power-up chances slightly
+    powerUpTypes.forEach(powerUp => {
+        powerUp.chance = Math.min(powerUp.chance * 1.1, 0.3); // Cap at 30%
+    });
     
     // Reset positions
     resetBallAndPaddle();
     initBricks();
+    powerUps = [];
     gameRunning = true;
     draw();
 }
@@ -236,7 +413,6 @@ function nextLevel() {
 function movePaddle() {
     paddle.x += paddle.dx;
     
-    // Wall detection
     if (paddle.x < 0) {
         paddle.x = 0;
     }
@@ -246,7 +422,7 @@ function movePaddle() {
 }
 
 // Move ball
-function moveBall() {
+function moveBall(ball, index) {
     ball.x += ball.dx;
     ball.y += ball.dy;
     
@@ -264,7 +440,6 @@ function moveBall() {
         ball.x > paddle.x &&
         ball.x < paddle.x + paddle.width) {
         
-        // Add some angle based on where it hits the paddle
         let hitPos = (ball.x - paddle.x) / paddle.width;
         ball.dx = (hitPos - 0.5) * 8;
         ball.dy = -Math.abs(ball.dy);
@@ -272,24 +447,36 @@ function moveBall() {
     
     // Ball out of bounds
     if (ball.y + ball.radius > canvas.height) {
-        lives--;
-        updateLives();
+        balls.splice(index, 1);
         
-        if (lives === 0) {
-            gameOver();
-        } else {
-            resetBallAndPaddle();
+        // If no balls left, lose a life
+        if (balls.length === 0) {
+            lives--;
+            updateLives();
+            
+            if (lives === 0) {
+                gameOver();
+            } else {
+                resetBallAndPaddle();
+            }
         }
+    }
+}
+
+// Move all balls
+function moveBalls() {
+    for (let i = balls.length - 1; i >= 0; i--) {
+        moveBall(balls[i], i);
     }
 }
 
 // Reset ball and paddle
 function resetBallAndPaddle() {
     paddle.x = canvas.width / 2 - 60;
-    ball.x = canvas.width / 2;
-    ball.y = canvas.height - 60;
-    ball.dx = 4 * (Math.random() > 0.5 ? 1 : -1);
-    ball.dy = -4;
+    balls = [createBall()];
+    const baseSpeed = 4 + (level - 1) * 0.3;
+    balls[0].dx = baseSpeed * (Math.random() > 0.5 ? 1 : -1);
+    balls[0].dy = -baseSpeed;
 }
 
 // Update score
@@ -316,12 +503,14 @@ function draw() {
     
     drawBricks();
     drawPaddle();
-    drawBall();
+    drawBalls();
+    drawPowerUps();
     collisionDetection();
     
     if (gameRunning && !gamePaused) {
         movePaddle();
-        moveBall();
+        moveBalls();
+        movePowerUps();
         animationId = requestAnimationFrame(draw);
     }
 }
@@ -409,7 +598,11 @@ function restartGame() {
     score = 0;
     lives = 3;
     level = 1;
-    ball.speed = 4;
+    
+    // Reset power-up chances to original values
+    powerUpTypes[0].chance = 0.05; // Bomb
+    powerUpTypes[1].chance = 0.08; // Life
+    powerUpTypes[2].chance = 0.1;  // Multi ball
     
     updateScore();
     updateLives();
@@ -417,6 +610,7 @@ function restartGame() {
     
     resetBallAndPaddle();
     initBricks();
+    powerUps = [];
     
     document.getElementById('gameOverModal').style.display = 'none';
     document.getElementById('levelCompleteModal').style.display = 'none';
@@ -443,4 +637,5 @@ document.getElementById('nextLevelBtn').addEventListener('click', nextLevel);
 
 // Initialize game
 initBricks();
+balls = [createBall()];
 draw();
