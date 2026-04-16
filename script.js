@@ -332,6 +332,12 @@ function keyDown(e) {
         paddle.dx = paddle.speed;
     } else if (e.key === 'ArrowLeft' || e.key === 'Left') {
         paddle.dx = -paddle.speed;
+    } else if (e.key === 'Enter') {
+        if (!gameRunning) {
+            startGame();
+        } else if (gameRunning) {
+            pauseGame();
+        }
     }
 }
 
