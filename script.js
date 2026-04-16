@@ -12,6 +12,8 @@ let level = 1;
 let gameRunning = false;
 let gamePaused = false;
 let animationId;
+let playerName = '';
+let highScores = [];
 
 // Paddle (spaceship)
 const paddle = {
@@ -67,21 +69,35 @@ const powerUpTypes = [
         emoji: '💣', 
         color: '#ef4444',
         glow: 'rgba(239, 68, 68, 0.8)',
-        chance: 0.05  // 5% chance
+        chance: 0.01  // 1% - ΠΟΛΥ ΣΠΑΝΙΟ!
     },
     { 
         type: 'life', 
         emoji: '❤️', 
         color: '#ec4899',
         glow: 'rgba(236, 72, 153, 0.8)',
-        chance: 0.08  // 8% chance
+        chance: 0.03  // 3% - Σπάνιο
     },
     { 
         type: 'multiBall', 
         emoji: '⚡', 
         color: '#fbbf24',
         glow: 'rgba(251, 191, 36, 0.8)',
-        chance: 0.1  // 10% chance
+        chance: 0.05  // 5% - Μέτριο
+    },
+    { 
+        type: 'bonus', 
+        emoji: '💰', 
+        color: '#10b981',
+        glow: 'rgba(16, 185, 129, 0.8)',
+        chance: 0.06  // 6% - Συχνό
+    },
+    { 
+        type: 'skull', 
+        emoji: '💀', 
+        color: '#6b7280',
+        glow: 'rgba(107, 114, 128, 0.8)',
+        chance: 0.04  // 4% - BAD! Χάνεις ζωή
     }
 ];
 
@@ -319,6 +335,34 @@ function activatePowerUp(type) {
             balls[balls.length - 2].dx = -4;
             balls[balls.length - 1].dx = 2;
             break;
+            
+        case 'bonus':
+            // Give 100 bonus points
+            score += 100;
+            updateScore();
+            
+            // Visual effect
+            ctx.save();
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
+            break;
+            
+        case 'skull':
+            // Lose a life - BAD power-up!
+            lives--;
+            updateLives();
+            
+            // Visual effect
+            ctx.save();
+            ctx.fillStyle = 'rgba(107, 114, 128, 0.3)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
+            
+            if (lives === 0) {
+                gameOver();
+            }
+            break;
     }
 }
 
@@ -489,11 +533,79 @@ function updateLives() {
     document.getElementById('lives').textContent = lives;
 }
 
+// Load high scores from localStorage
+function loadHighScores() {
+    const saved = localStorage.getItem('arkanoidHighScores');
+    if (saved) {
+        highScores = JSON.parse(saved);
+    } else {
+        highScores = [];
+    }
+}
+
+// Save high scores to localStorage
+function saveHighScores() {
+    localStorage.setItem('arkanoidHighScores', JSON.stringify(highScores));
+}
+
+// Update high scores
+function updateHighScores() {
+    if (!playerName) return;
+    
+    highScores.push({
+        name: playerName,
+        score: score,
+        level: level,
+        date: new Date().toLocaleDateString('el-GR')
+    });
+    
+    // Sort by score (highest first)
+    highScores.sort((a, b) => b.score - a.score);
+    
+    // Keep only top 10
+    highScores = highScores.slice(0, 10);
+    
+    saveHighScores();
+}
+
+// Display high scores in modal
+function displayHighScores() {
+    const highScoresList = document.getElementById('highScoresList');
+    if (!highScoresList) return;
+    
+    if (highScores.length === 0) {
+        highScoresList.innerHTML = '<p style="color: #94a3b8;">Δεν υπάρχουν ακόμα high scores!</p>';
+        return;
+    }
+    
+    let html = '<div style="max-height: 300px; overflow-y: auto;">';
+    highScores.forEach((entry, index) => {
+        html += `
+            <div style="display: flex; justify-content: space-between; padding: 10px; margin: 5px 0; background: rgba(59, 130, 246, 0.1); border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                <span style="color: #3b82f6; font-weight: bold;">#${index + 1}</span>
+                <span style="color: #fff;">${entry.name}</span>
+                <span style="color: #fbbf24;">${entry.score} πόντοι</span>
+                <span style="color: #94a3b8; font-size: 12px;">Lvl ${entry.level}</span>
+            </div>
+        `;
+    });
+    html += '</div>';
+    
+    highScoresList.innerHTML = html;
+}
+
 // Game over
 function gameOver() {
     gameRunning = false;
     cancelAnimationFrame(animationId);
+    
+    updateHighScores();
+    
     document.getElementById('finalScore').textContent = score;
+    document.getElementById('finalLevel').textContent = level;
+    
+    displayHighScores();
+    
     document.getElementById('gameOverModal').style.display = 'block';
 }
 
@@ -571,6 +683,17 @@ function touchMove(e) {
 // Start game
 function startGame() {
     if (!gameRunning) {
+        // Ask for player name if not set
+        if (!playerName) {
+            const name = prompt('Γράψε το όνομά σου για το High Score:');
+            if (name && name.trim()) {
+                playerName = name.trim();
+            } else {
+                playerName = 'Παίκτης';
+            }
+            document.getElementById('playerNameDisplay').textContent = playerName;
+        }
+        
         gameRunning = true;
         gamePaused = false;
         document.getElementById('startBtn').disabled = true;
@@ -600,9 +723,11 @@ function restartGame() {
     level = 1;
     
     // Reset power-up chances to original values
-    powerUpTypes[0].chance = 0.05; // Bomb
-    powerUpTypes[1].chance = 0.08; // Life
-    powerUpTypes[2].chance = 0.1;  // Multi ball
+    powerUpTypes[0].chance = 0.01; // Bomb - VERY RARE
+    powerUpTypes[1].chance = 0.03; // Life - Rare
+    powerUpTypes[2].chance = 0.05; // Multi ball - Medium
+    powerUpTypes[3].chance = 0.06; // Bonus - Common
+    powerUpTypes[4].chance = 0.04; // Skull - BAD
     
     updateScore();
     updateLives();
@@ -636,6 +761,7 @@ document.getElementById('restartBtn').addEventListener('click', restartGame);
 document.getElementById('nextLevelBtn').addEventListener('click', nextLevel);
 
 // Initialize game
+loadHighScores();
 initBricks();
 balls = [createBall()];
 draw();
