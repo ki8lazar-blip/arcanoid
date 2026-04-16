@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Arkanoid - Διαστημικό Παιχνίδι</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="stars"></div>
+    <div class="game-container">
+        <div class="header">
+            <div class="score-board">
+                <div class="score-item">
+                    <span class="label">🌟 Πόντοι:</span>
+                    <span class="value" id="score">0</span>
+                </div>
+                <div class="score-item">
+                    <span class="label">❤️ Ζωές:</span>
+                    <span class="value" id="lives">3</span>
+                </div>
+                <div class="score-item">
+                    <span class="label">🎯 Επίπεδο:</span>
+                    <span class="value" id="level">1</span>
+                </div>
+            </div>
+        </div>
+        
+        <canvas id="gameCanvas"></canvas>
+        
+        <div class="controls">
+            <button id="startBtn" class="game-btn">🚀 Ξεκίνα</button>
+            <button id="pauseBtn" class="game-btn" disabled>⏸️ Παύση</button>
+            <button id="restartBtn" class="game-btn">🔄 Επανέναρξη</button>
+        </div>
+        
+        <div class="instructions">
+            <p>🎮 <strong>Χρησιμοποίησε τα βέλη ← → ή το ποντίκι</strong> για να κινήσεις το διαστημόπλοιο!</p>
+            <p>💫 Κατέστρεψε όλους τους αστεροειδείς για να προχωρήσεις στο επόμενο επίπεδο!</p>
+        </div>
+    </div>
+    
+    <div id="gameOverModal" class="modal">
+        <div class="modal-content">
+            <h2>🌌 Τέλος Παιχνιδιού!</h2>
+            <p>Συγκέντρωσες <span id="finalScore">0</span> πόντους!</p>
+            <button onclick="location.reload()" class="game-btn">🔄 Ξανά!</button>
+        </div>
+    </div>
+    
+    <div id="levelCompleteModal" class="modal">
+        <div class="modal-content">
+            <h2>🎉 Μπράβο!</h2>
+            <p>Ολοκλήρωσες το επίπεδο <span id="completedLevel">1</span>!</p>
+            <button id="nextLevelBtn" class="game-btn">➡️ Επόμενο Επίπεδο</button>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
