@@ -38,14 +38,21 @@
             <p>🎮 <strong>Χρησιμοποίησε τα βέλη ← → ή το ποντίκι</strong> για να κινήσεις το διαστημόπλοιο!</p>
             <p>⌨️ <strong>Πάτα ENTER</strong> για να ξεκινήσεις ή να κάνεις παύση!</p>
             <p>💫 Κατέστρεψε όλους τους αστεροειδείς για να προχωρήσεις στο επόμενο επίπεδο!</p>
+            <p style="margin-top: 15px; font-size: 13px;">
+                <strong>Power-ups:</strong> 💣 Βόμβα | ❤️ +Ζωή | ⚡ Πολλαπλές μπάλες | 💰 +100 πόντοι | 💀 -Ζωή (ΠΡΟΣΟΧΗ!)
+            </p>
         </div>
     </div>
     
     <div id="gameOverModal" class="modal">
         <div class="modal-content">
             <h2>🌌 Τέλος Παιχνιδιού!</h2>
+            <p><strong id="playerNameDisplay">Παίκτης</strong></p>
+            <p>Έφτασες μέχρι το επίπεδο <span id="finalLevel">1</span></p>
             <p>Συγκέντρωσες <span id="finalScore">0</span> πόντους!</p>
-            <button onclick="location.reload()" class="game-btn">🔄 Ξανά!</button>
+            <h3 style="margin-top: 30px; color: #3b82f6;">🏆 High Scores</h3>
+            <div id="highScoresList"></div>
+            <button onclick="location.reload()" class="game-btn" style="margin-top: 20px;">🔄 Ξανά!</button>
         </div>
     </div>
     
